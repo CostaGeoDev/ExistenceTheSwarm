@@ -16,7 +16,7 @@ class CfgMods
 {
 	class The_Swarm
 	{
-		dir="TheSwarm";
+		dir="ExistenceTheSwarm";
 		picture="";
 		action="";
 		hideName=1;
@@ -42,7 +42,7 @@ class CfgMods
 				value="";
 				files[]=
 				{
-					"TheSwarm/Scripts/3_Game"
+					"ExistenceTheSwarm/Scripts/3_Game"
 				};
 			};
 			class worldScriptModule
@@ -50,7 +50,7 @@ class CfgMods
 				value="";
 				files[]=
 				{
-					"TheSwarm/Scripts/4_World"
+					"ExistenceTheSwarm/Scripts/4_World"
 				};
 			};
 			class missionScriptModule
@@ -58,7 +58,7 @@ class CfgMods
 				value="";
 				files[]=
 				{
-					"TheSwarm/Scripts/5_Mission"
+					"ExistenceTheSwarm/Scripts/5_Mission"
 				};
 			};
 		};
