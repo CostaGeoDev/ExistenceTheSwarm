@@ -42,7 +42,13 @@ class TheSwarmConfig
     int maxInfected = 50;
 
     // Minimum and maximum distance from the spawn location to the player
-    float safeSpawnRadius = 50.0;    
+    float safeSpawnRadius = 50.0;
+
+    // Include a random location for the horde to spawn
+    bool randomSpawnLocation = true;
+
+    // Default world name, can be changed if needed
+    string WorldName = "Livonia";
 
     // Array of locations to spawn the horde
     autoptr array<ref SpawnLocation> spawnLocations = {

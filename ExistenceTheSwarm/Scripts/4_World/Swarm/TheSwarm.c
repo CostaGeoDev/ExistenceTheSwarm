@@ -8,34 +8,123 @@ class TheSwarm
         config = GetTheSwarmConfig();
     }
 
+    private void GetMapBounds(out float minX, out float maxX, out float minZ, out float maxZ)
+    {
+        string world = config.WorldName;
+        if (world == "Chernarus")
+        {
+            minX = 0; maxX = 15360;
+            minZ = 0; maxZ = 15360;
+        }
+        else if (world == "Livonia")
+        {
+            minX = 0; maxX = 12800;
+            minZ = 0; maxZ = 12800;
+        }
+        else if (world == "Namalsk")
+        {
+            minX = 0; maxX = 8192;
+            minZ = 0; maxZ = 8192;
+        }
+        else if (world == "Deerisle" || world == "DeerIsle")
+        {
+            minX = 0; maxX = 16384;
+            minZ = 0; maxZ = 16384;
+        }
+        else if (world == "Esseker")
+        {
+            minX = 0; maxX = 10240;
+            minZ = 0; maxZ = 10240;
+        }
+        else if (world == "Banov")
+        {
+            minX = 0; maxX = 10240;
+            minZ = 0; maxZ = 10240;
+        }
+        else if (world == "Iztek")
+        {
+            minX = 0; maxX = 10240;
+            minZ = 0; maxZ = 10240;
+        }
+        else if (world == "Rostow")
+        {
+            minX = 0; maxX = 12288;
+            minZ = 0; maxZ = 12288;
+        }
+        else if (world == "Takistan")
+        {
+            minX = 0; maxX = 12800;
+            minZ = 0; maxZ = 12800;
+        }
+        else
+        {
+            // Default fallback (Livonia size)
+            minX = 0; maxX = 12800;
+            minZ = 0; maxZ = 12800;
+        }
+    }
+
     void SpawnHorde()
     {
-        if (config.spawnLocations.Count() == 0)
+        if (config.spawnLocations.Count() == 0 && !config.randomSpawnLocation)
         {
-            Print("[TheSwarm] No spawn locations defined. Aborting horde spawn.");
+            Print("[TheSwarm] No spawn locations defined and random spawn disabled. Aborting horde spawn.");
             return;
         }
 
-        // Ensure the previous horde is despawned before spawning a new one
         DespawnHorde();
 
-        // Try to find a spawn location not near any player
         float SAFE_RADIUS = config.safeSpawnRadius;
-        SpawnLocation randomLocation;
+        SpawnLocation chosenLocation;
+        vector chosenPosition;
+        string chosenName;
         bool foundSafeLocation = false;
 
-        for (int attempt = 0; attempt < config.spawnLocations.Count(); attempt++)
-        {
-            SpawnLocation candidate = config.spawnLocations.GetRandomElement();
-            vector pos = candidate.Position;
-            bool playerTooClose = false;
+        int totalOptions = config.spawnLocations.Count();
+        if (config.randomSpawnLocation) totalOptions += 1; // Add one for the random option
 
+        for (int attempt = 0; attempt < totalOptions; attempt++)
+        {
+            bool pickRandom = config.randomSpawnLocation && Math.RandomInt(0, totalOptions) == 0;
+            if (pickRandom)
+            {
+                float minX, maxX, minZ, maxZ;
+                GetMapBounds(minX, maxX, minZ, maxZ);
+                float x, z, y;
+                bool validLand = false;
+                int maxLandTries = 10;
+                for (int landTry = 0; landTry < maxLandTries; landTry++)
+                {
+                    x = Math.RandomFloat(minX, maxX);
+                    z = Math.RandomFloat(minZ, maxZ);
+                    if (!GetGame().SurfaceIsSea(x, z))
+                    {
+                        validLand = true;
+                        break;
+                    }
+                }
+                if (!validLand)
+                    continue; // Try another random or preset location
+
+                y = GetGame().SurfaceY(x, z);
+                chosenPosition = Vector(x, y, z);
+                chosenName = "Random Location";
+            }
+            else
+            {
+                chosenLocation = config.spawnLocations.GetRandomElement();
+                chosenPosition = chosenLocation.Position;
+                chosenName = chosenLocation.LocationName;
+            }
+
+            // Check for players nearby
+            bool playerTooClose = false;
             array<Man> players = new array<Man>();
             GetGame().GetPlayers(players);
 
             foreach (Man player : players)
             {
-                if (player && vector.Distance(player.GetPosition(), pos) <= SAFE_RADIUS)
+                if (player && vector.Distance(player.GetPosition(), chosenPosition) <= SAFE_RADIUS)
                 {
                     playerTooClose = true;
                     break;
@@ -44,7 +133,6 @@ class TheSwarm
 
             if (!playerTooClose)
             {
-                randomLocation = candidate;
                 foundSafeLocation = true;
                 break;
             }
@@ -56,32 +144,24 @@ class TheSwarm
             return;
         }
 
-        string locationName = randomLocation.LocationName;
-        vector position = randomLocation.Position;
+        int infectedAmount = Math.RandomInt(config.minInfected, config.maxInfected + 1);
 
-        // Randomize the number of infected to spawn
-        int infectedAmount = Math.RandomInt(config.minInfected, config.maxInfected + 1); // +1 because the upper bound is exclusive
-
-        // Log spawn information
-        Print("[TheSwarm] Spawning horde of " + infectedAmount + " infected at " + locationName + " (" + position.ToString() + ").");
+        Print("[TheSwarm] Spawning horde of " + infectedAmount + " infected at " + chosenName + " (" + chosenPosition.ToString() + ").");
 
         if (config.displayMessages)
         {
-            /// DisplaySpawnMessage(locationName, position);
             string randomMessage = config.spawnMessages.GetRandomElement();
-            GetGame().ChatPlayer(randomMessage + " near " + locationName); // Broadcast the message to all players
+            GetGame().ChatPlayer(randomMessage + " near " + chosenName);
         }
 
-        // Spawn the infected
         for (int i = 0; i < infectedAmount; i++)
         {
-            string infectedType = config.infectedTypes.GetRandomElement(); // Get a random infected type
-            vector spawnPos = position + Vector(Math.RandomFloat(-5, 5), 0, Math.RandomFloat(-5, 5)); // Random offset around the location
-
-            EntityAI infected = GetGame().CreateObject(infectedType, spawnPos, false, true, true); // Spawn the infected
+            string infectedType = config.infectedTypes.GetRandomElement();
+            vector spawnPos = chosenPosition + Vector(Math.RandomFloat(-5, 5), 0, Math.RandomFloat(-5, 5));
+            EntityAI infected = GetGame().CreateObject(infectedType, spawnPos, false, true, true);
             if (infected)
             {
-                currentHorde.Insert(infected); // Add to the active horde list
+                currentHorde.Insert(infected);
                 Print("[TheSwarm] Spawned infected " + infectedType + " at " + spawnPos.ToString());
             }
             else
@@ -90,7 +170,6 @@ class TheSwarm
             }
         }
 
-        // Schedule the first check for despawn
         GetGame().GetCallQueue(CALL_CATEGORY_SYSTEM).CallLater(CheckAndDespawnHorde, 5000, true); // Check every 5 seconds
     }
 
